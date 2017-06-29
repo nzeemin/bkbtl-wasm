@@ -5,6 +5,18 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <title>WASM Test</title>
     <style>
+        html {
+            overflow-y: scroll;
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+
+        body {
+            max-width: 100%;
+            overflow-x: hidden;
+            margin: 0;
+        }
+
         .emscripten {
             padding-right: 0;
             margin-left: auto;
@@ -12,40 +24,35 @@
             display: block;
         }
 
-        div.emscripten_right {
-            float: right;
-            width: 50%;
+        div.emupanel {
+            width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            border: none;
+            border-collapse: collapse;
+            background-color: #f0f0f0;
         }
 
-        textarea.emscripten {
-            width: 100%;
-            font-family: monospace;
-            height: 150px;
-            margin-right: 50%;
-            margin-top: 4px;
-        }
-
-        div.emscripten_toolbar {
-            width: 100%;
+        div.emupanel-toolbar {
+            /*width: 100%;*/
             text-align: left;
+            padding: 4px;
+            background-color: #f0f0f0;
         }
 
-        div.emscripten_registers {
+        span.emupanel-registers {
             font-family: monospace;
-            min-height: 3em;
         }
 
-        div.emscripten {
-            text-align: left;
-        }
-
-        div.emscripten_border {
-            /*border: 1px solid gray;*/
+        div.emupanel-main {
+            width: 600px;
+            padding: 0;
+            padding-top: 4px;
+            display: block;
             background-color: #737373;
-            margin-right: 50%;
-            min-width: 520px;
-            padding-top: 8px;
+            /*text-align: center;*/
         }
+
         /* the canvas *must not* have any border or padding, or mouse coords will be wrong */
         canvas.emscripten {
             border: 0px none;
@@ -54,14 +61,24 @@
             height: 256px;
         }
 
-        div.emscripten_keyboard {
+        div.emupanel-keyboard {
             text-align: center;
             margin-top: 4px;
         }
 
+        textarea.emupanel-output {
+            width: 590px;
+            font-family: monospace;
+            font-size: 12px;
+            color: #404040;
+            height: 150px;
+            margin: 4px;
+            padding: 0 0 0 0;
+        }
+
         .spinner {
-            height: 50px;
-            width: 50px;
+            height: 40px;
+            width: 40px;
             margin: 0px auto;
             -webkit-animation: rotation .8s linear infinite;
             -moz-animation: rotation .8s linear infinite;
@@ -117,42 +134,114 @@
     </style>
 </head>
 <body>
-    <a href="https://github.com/nzeemin/bkbtl-wasm" class="github-corner" aria-label="View source on Github"><svg width="80" height="80" viewBox="0 0 250 250" style="fill:#151513; color:#fff; position: absolute; top: 0; border: 0; right: 0;" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a><style>.github-corner:hover .octo-arm{animation:octocat-wave 560ms ease-in-out}@keyframes octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80%{transform:rotate(10deg)}}@media (max-width:500px){.github-corner:hover .octo-arm{animation:none}.github-corner .octo-arm{animation:octocat-wave 560ms ease-in-out}}</style>
     <figure style="overflow:visible;" id="spinner"><div class="spinner"></div><center style="margin-top:0.5em"><strong>emscripten</strong></center></figure>
     <div class="emscripten" id="status">Downloading...</div>
     <div class="emscripten">
         <progress value="0" max="100" id="progress" hidden=1></progress>
     </div>
-    <div class="emscripten_right">
-        <div class="emscripten_toolbar">
-            <input type="button" value="Start" onclick="emulatorStart()">
-            <input type="button" value="Frame" onclick="Module.systemFrame()">
-            <input type="button" value="25 Frames" onclick="emulatorSystemFrame25()">
-            <input type="button" value="Draw Screen" onclick="Module.drawScreen()">
-            <div class="emscripten_registers">
-                <div id="register"></div>
-                <div id="uptime"></div>
+
+    <div class="emupanel">
+        <div class="emupanel-toolbar">
+            <input id="buttonStart" type="button" value="Run" onclick="emulatorStart()" style="width: 60px;">
+            <input type="button" value="Reset" onclick="Module.emulatorReset()" style="width: 60px;">
+            <!--<input type="button" value="Frame" onclick="Module.systemFrame()">-->
+            <!--<input type="button" value="25 Frames" onclick="emulatorSystemFrame25()">-->
+            <!--<input type="button" value="Draw Screen" onclick="Module.drawScreen()">-->
+            <span class="emupanel-registers">
+                <span id="register"></span>
+                <span id="uptime"></span>
+            </span>
+        </div>
+        <div class="emupanel-main">
+            <canvas class="emscripten" id="canvas" width="512" height="256" oncontextmenu="event.preventDefault()"></canvas>
+            <div class="emupanel-keyboard">
+                <img src="keyboard.png" width="551" usemap="#keyboard" />
             </div>
+            <map name="keyboard">
+                <!-- Top row -->
+                <area shape="rect" coords="003,003,054,036" alt="0201" href="javascript:void(0)" onmousedown="emulatorKeyPress(129)" onmouseup="emulatorKeyRelease(129)" />
+                <area shape="rect" coords="056,003,107,036" alt="0003" href="javascript:void(0)" onmousedown="emulatorKeyPress(3)" onmouseup="emulatorKeyRelease(3)" />
+                <area shape="rect" coords="109,003,160,036" alt="0231" href="javascript:void(0)" onmousedown="emulatorKeyPress(153)" onmouseup="emulatorKeyRelease(153)" />
+                <area shape="rect" coords="162,003,213,036" alt="0026" href="javascript:void(0)" onmousedown="emulatorKeyPress(22)" onmouseup="emulatorKeyRelease(22)" />
+                <area shape="rect" coords="215,003,266,036" alt="0027" href="javascript:void(0)" onmousedown="emulatorKeyPress(23)" onmouseup="emulatorKeyRelease(23)" />
+                <area shape="rect" coords="268,003,319,036" alt="0202" href="javascript:void(0)" onmousedown="emulatorKeyPress(130)" onmouseup="emulatorKeyRelease(130)" />
+                <area shape="rect" coords="321,003,372,036" alt="0204" href="javascript:void(0)" onmousedown="emulatorKeyPress(132)" onmouseup="emulatorKeyRelease(132)" />
+                <area shape="rect" coords="374,003,425,036" alt="0220" href="javascript:void(0)" onmousedown="emulatorKeyPress(144)" onmouseup="emulatorKeyRelease(144)" />
+                <area shape="rect" coords="426,003,477,036" alt="0014" href="javascript:void(0)" onmousedown="emulatorKeyPress(12)" onmouseup="emulatorKeyRelease(12)" />
+                <area shape="rect" coords="478,003,548,036" alt="0277" href="javascript:void(0)" onmousedown="emulatorKeyPress(191)" onmouseup="emulatorKeyRelease(191)" />
+                <!-- 2nd row -->
+                <area shape="rect" coords="003,038,037,072" alt="0275" href="javascript:void(0)" onmousedown="emulatorKeyPress(189)" onmouseup="emulatorKeyRelease(189)" />
+                <area shape="rect" coords="038,038,072,072" alt="0073" href="javascript:void(0)" onmousedown="emulatorKeyPress(59)" onmouseup="emulatorKeyRelease(59)" />
+                <area shape="rect" coords="074,038,108,072" alt="0061" href="javascript:void(0)" onmousedown="emulatorKeyPress(49)" onmouseup="emulatorKeyRelease(49)" />
+                <area shape="rect" coords="109,038,143,072" alt="0062" href="javascript:void(0)" onmousedown="emulatorKeyPress(50)" onmouseup="emulatorKeyRelease(50)" />
+                <area shape="rect" coords="144,038,178,072" alt="0063" href="javascript:void(0)" onmousedown="emulatorKeyPress(51)" onmouseup="emulatorKeyRelease(51)" />
+                <area shape="rect" coords="179,038,213,072" alt="0064" href="javascript:void(0)" onmousedown="emulatorKeyPress(52)" onmouseup="emulatorKeyRelease(52)" />
+                <area shape="rect" coords="214,038,248,072" alt="0065" href="javascript:void(0)" onmousedown="emulatorKeyPress(53)" onmouseup="emulatorKeyRelease(53)" />
+                <area shape="rect" coords="250,038,284,072" alt="0066" href="javascript:void(0)" onmousedown="emulatorKeyPress(54)" onmouseup="emulatorKeyRelease(54)" />
+                <area shape="rect" coords="285,038,319,072" alt="0067" href="javascript:void(0)" onmousedown="emulatorKeyPress(55)" onmouseup="emulatorKeyRelease(55)" />
+                <area shape="rect" coords="320,038,354,072" alt="0070" href="javascript:void(0)" onmousedown="emulatorKeyPress(56)" onmouseup="emulatorKeyRelease(56)" />
+                <area shape="rect" coords="355,038,389,072" alt="0071" href="javascript:void(0)" onmousedown="emulatorKeyPress(57)" onmouseup="emulatorKeyRelease(57)" />
+                <area shape="rect" coords="391,038,425,072" alt="0060" href="javascript:void(0)" onmousedown="emulatorKeyPress(48)" onmouseup="emulatorKeyRelease(48)" />
+                <area shape="rect" coords="426,038,460,072" alt="0055" href="javascript:void(0)" onmousedown="emulatorKeyPress(45)" onmouseup="emulatorKeyRelease(45)" />
+                <area shape="rect" coords="461,038,495,072" alt="0057" href="javascript:void(0)" onmousedown="emulatorKeyPress(47)" onmouseup="emulatorKeyRelease(47)" />
+                <area shape="rect" coords="498,038,532,072" alt="0030" href="javascript:void(0)" onmousedown="emulatorKeyPress(24)" onmouseup="emulatorKeyRelease(24)" />
+                <!-- 3rd row -->
+                <area shape="rect" coords="004,073,054,107" alt="0015" href="javascript:void(0)" onmousedown="emulatorKeyPress(13)" onmouseup="emulatorKeyRelease(13)" />
+                <area shape="rect" coords="056,073,090,107" alt="0112" href="javascript:void(0)" onmousedown="emulatorKeyPress(74)" onmouseup="emulatorKeyRelease(74)" />
+                <area shape="rect" coords="091,073,125,107" alt="0103" href="javascript:void(0)" onmousedown="emulatorKeyPress(67)" onmouseup="emulatorKeyRelease(67)" />
+                <area shape="rect" coords="126,073,160,107" alt="0125" href="javascript:void(0)" onmousedown="emulatorKeyPress(85)" onmouseup="emulatorKeyRelease(85)" />
+                <area shape="rect" coords="162,073,196,107" alt="0113" href="javascript:void(0)" onmousedown="emulatorKeyPress(75)" onmouseup="emulatorKeyRelease(75)" />
+                <area shape="rect" coords="197,073,231,107" alt="0105" href="javascript:void(0)" onmousedown="emulatorKeyPress(69)" onmouseup="emulatorKeyRelease(69)" />
+                <area shape="rect" coords="232,073,266,107" alt="0116" href="javascript:void(0)" onmousedown="emulatorKeyPress(78)" onmouseup="emulatorKeyRelease(78)" />
+                <area shape="rect" coords="267,073,301,107" alt="0107" href="javascript:void(0)" onmousedown="emulatorKeyPress(71)" onmouseup="emulatorKeyRelease(71)" />
+                <area shape="rect" coords="302,073,337,107" alt="0133" href="javascript:void(0)" onmousedown="emulatorKeyPress(91)" onmouseup="emulatorKeyRelease(91)" />
+                <area shape="rect" coords="338,073,372,107" alt="0135" href="javascript:void(0)" onmousedown="emulatorKeyPress(93)" onmouseup="emulatorKeyRelease(93)" />
+                <area shape="rect" coords="373,073,407,107" alt="0132" href="javascript:void(0)" onmousedown="emulatorKeyPress(90)" onmouseup="emulatorKeyRelease(90)" />
+                <area shape="rect" coords="408,073,442,107" alt="0110" href="javascript:void(0)" onmousedown="emulatorKeyPress(72)" onmouseup="emulatorKeyRelease(72)" />
+                <area shape="rect" coords="443,073,478,107" alt="0072" href="javascript:void(0)" onmousedown="emulatorKeyPress(58)" onmouseup="emulatorKeyRelease(58)" />
+                <area shape="rect" coords="479,073,513,107" alt="0137" href="javascript:void(0)" onmousedown="emulatorKeyPress(95)" onmouseup="emulatorKeyRelease(95)" />
+                <area shape="rect" coords="514,073,548,107" alt="0023" href="javascript:void(0)" onmousedown="emulatorKeyPress(19)" onmouseup="emulatorKeyRelease(19)" />
+                <!-- 4th row -->
+                <area shape="rect" coords="012,109,062,143" alt="0000" href="javascript:void(0)" onmousedown="emulatorKeyPress(0)" onmouseup="emulatorKeyRelease(0)" />
+                <area shape="rect" coords="064,109,098,143" alt="0106" href="javascript:void(0)" onmousedown="emulatorKeyPress(70)" onmouseup="emulatorKeyRelease(70)" />
+                <area shape="rect" coords="099,109,134,143" alt="0131" href="javascript:void(0)" onmousedown="emulatorKeyPress(89)" onmouseup="emulatorKeyRelease(89)" />
+                <area shape="rect" coords="135,109,169,143" alt="0127" href="javascript:void(0)" onmousedown="emulatorKeyPress(87)" onmouseup="emulatorKeyRelease(87)" />
+                <area shape="rect" coords="170,109,204,143" alt="0101" href="javascript:void(0)" onmousedown="emulatorKeyPress(65)" onmouseup="emulatorKeyRelease(65)" />
+                <area shape="rect" coords="205,109,239,143" alt="0120" href="javascript:void(0)" onmousedown="emulatorKeyPress(80)" onmouseup="emulatorKeyRelease(80)" />
+                <area shape="rect" coords="240,109,274,143" alt="0122" href="javascript:void(0)" onmousedown="emulatorKeyPress(82)" onmouseup="emulatorKeyRelease(82)" />
+                <area shape="rect" coords="275,109,310,143" alt="0117" href="javascript:void(0)" onmousedown="emulatorKeyPress(79)" onmouseup="emulatorKeyRelease(79)" />
+                <area shape="rect" coords="311,109,345,143" alt="0114" href="javascript:void(0)" onmousedown="emulatorKeyPress(76)" onmouseup="emulatorKeyRelease(76)" />
+                <area shape="rect" coords="346,109,380,143" alt="0104" href="javascript:void(0)" onmousedown="emulatorKeyPress(68)" onmouseup="emulatorKeyRelease(68)" />
+                <area shape="rect" coords="381,109,415,143" alt="0126" href="javascript:void(0)" onmousedown="emulatorKeyPress(86)" onmouseup="emulatorKeyRelease(86)" />
+                <area shape="rect" coords="416,109,451,143" alt="0134" href="javascript:void(0)" onmousedown="emulatorKeyPress(92)" onmouseup="emulatorKeyRelease(92)" />
+                <area shape="rect" coords="452,109,487,143" alt="0076" href="javascript:void(0)" onmousedown="emulatorKeyPress(62)" onmouseup="emulatorKeyRelease(62)" />
+                <area shape="rect" coords="488,109,538,143" alt="0012" href="javascript:void(0)" onmousedown="emulatorKeyPress(10)" onmouseup="emulatorKeyRelease(10)" />
+                <!-- 5th row -->
+                <area shape="rect" coords="012,144,046,178" alt="0273" href="javascript:void(0)" onmousedown="emulatorKeyPress(187)" onmouseup="emulatorKeyRelease(187)" />
+                <area shape="rect" coords="047,144,081,178" alt="0274" href="javascript:void(0)" onmousedown="emulatorKeyPress(188)" onmouseup="emulatorKeyRelease(188)" />
+                <area shape="rect" coords="082,144,116,178" alt="0121" href="javascript:void(0)" onmousedown="emulatorKeyPress(81)" onmouseup="emulatorKeyRelease(81)" />
+                <area shape="rect" coords="117,144,151,178" alt="0136" href="javascript:void(0)" onmousedown="emulatorKeyPress(94)" onmouseup="emulatorKeyRelease(94)" />
+                <area shape="rect" coords="152,144,186,178" alt="0123" href="javascript:void(0)" onmousedown="emulatorKeyPress(83)" onmouseup="emulatorKeyRelease(83)" />
+                <area shape="rect" coords="187,144,222,178" alt="0115" href="javascript:void(0)" onmousedown="emulatorKeyPress(77)" onmouseup="emulatorKeyRelease(77)" />
+                <area shape="rect" coords="223,144,257,178" alt="0111" href="javascript:void(0)" onmousedown="emulatorKeyPress(73)" onmouseup="emulatorKeyRelease(73)" />
+                <area shape="rect" coords="258,144,292,178" alt="0124" href="javascript:void(0)" onmousedown="emulatorKeyPress(84)" onmouseup="emulatorKeyRelease(84)" />
+                <area shape="rect" coords="293,144,327,178" alt="0130" href="javascript:void(0)" onmousedown="emulatorKeyPress(88)" onmouseup="emulatorKeyRelease(88)" />
+                <area shape="rect" coords="328,144,362,178" alt="0102" href="javascript:void(0)" onmousedown="emulatorKeyPress(66)" onmouseup="emulatorKeyRelease(66)" />
+                <area shape="rect" coords="363,144,398,178" alt="0100" href="javascript:void(0)" onmousedown="emulatorKeyPress(64)" onmouseup="emulatorKeyRelease(64)" />
+                <area shape="rect" coords="399,144,433,178" alt="0074" href="javascript:void(0)" onmousedown="emulatorKeyPress(60)" onmouseup="emulatorKeyRelease(60)" />
+                <!-- Bottom row -->
+                <area shape="rect" coords="012,179,062,213" alt="0016" href="javascript:void(0)" onmousedown="emulatorKeyPress(14)" onmouseup="emulatorKeyRelease(14)" />
+                <area shape="rect" coords="064,179,098,213" alt="0276" href="javascript:void(0)" onmousedown="emulatorKeyPress(190)" onmouseup="emulatorKeyRelease(190)" />
+                <area shape="rect" coords="099,179,380,213" alt="0040" href="javascript:void(0)" onmousedown="emulatorKeyPress(32)" onmouseup="emulatorKeyRelease(32)" />
+                <area shape="rect" coords="382,179,432,213" alt="0017" href="javascript:void(0)" onmousedown="emulatorKeyPress(15)" onmouseup="emulatorKeyRelease(15)" />
+                <!-- Arrows -->
+                <area shape="rect" coords="434,144,468,213" alt="0010" href="javascript:void(0)" onmousedown="emulatorKeyPress(8)" onmouseup="emulatorKeyRelease(8)" />
+                <area shape="rect" coords="469,144,504,178" alt="0032" href="javascript:void(0)" onmousedown="emulatorKeyPress(26)" onmouseup="emulatorKeyRelease(26)" />
+                <area shape="rect" coords="469,179,504,213" alt="0033" href="javascript:void(0)" onmousedown="emulatorKeyPress(27)" onmouseup="emulatorKeyRelease(27)" />
+                <area shape="rect" coords="505,144,539,213" alt="0031" href="javascript:void(0)" onmousedown="emulatorKeyPress(25)" onmouseup="emulatorKeyRelease(25)" />
+            </map>
         </div>
-        <textarea class="emscripten" id="output" rows="8"></textarea>
-    </div>
-    <div class="emscripten_border">
-        <canvas class="emscripten" id="canvas" width="512" height="256" oncontextmenu="event.preventDefault()"></canvas>
-        <div class="emscripten_keyboard">
-            <img src="keyboard.png" width="551" usemap="#keyboard" />
-        </div>
-        <map name="keyboard">
-            <area shape="rect" coords="3,3,54,36" alt="POVT" href="javascript:void(0)" />
-            <area shape="rect" coords="56,3,107,36" alt="003" href="javascript:void(0)" />
-            <area shape="rect" coords="109,3,160,36" alt="231" href="javascript:void(0)" />
-            <area shape="rect" coords="162,3,213,36" alt="026" href="javascript:void(0)" />
-            <area shape="rect" coords="215,3,266,36" alt="027" href="javascript:void(0)" />
-            <area shape="rect" coords="268,3,319,36" alt="202" href="javascript:void(0)" />
-            <area shape="rect" coords="321,3,372,36" alt="204" href="javascript:void(0)" />
-            <area shape="rect" coords="374,3,425,36" alt="220" href="javascript:void(0)" />
-            <area shape="rect" coords="426,3,477,36" alt="014" href="javascript:void(0)" />
-            <area shape="rect" coords="478,3,548,36" alt="STOP" href="javascript:void(0)" />
-        </map>
+        <textarea class="emupanel-output" id="output" rows="8"></textarea>
     </div>
 
     <script type='text/javascript'>
@@ -169,8 +258,6 @@
                 }
             ],
             postRun: [
-                function () {
-                }
             ],
             print: (function () {
                 var element = document.getElementById('output');
@@ -235,6 +322,12 @@
             emulatorStart: function () {
                 Module.ccall('Emulator_Start', null, null, null);
             },
+            emulatorReset: function () {
+                Module.ccall('Emulator_Reset', null, null, null);
+            },
+            emulatorKeyEvent: function (scan, pressRelease) {
+                Module.ccall('Emulator_KeyEvent', null, ['number', 'number'], [scan, pressRelease]);
+            },
             drawScreen: function () {
                 var ptrFrameBuffer = Module.ccall('Emulator_PrepareScreen', ['number'], null, null);
                 var buffer = Module.HEAPU8.subarray(ptrFrameBuffer, ptrFrameBuffer + 512 * 256 * 4);
@@ -248,7 +341,7 @@
             systemFrame: function () {
                 Module.ccall('Emulator_SystemFrame', null, null, null);
                 var regval = Module.ccall('Emulator_GetReg', 'number', null, null);
-                document.getElementById('register').innerText = regval.toString(8);
+                document.getElementById('register').innerText = 'PC ' + (regval < 0 ? regval + 65536 : regval).toString(8);
             }
         };
 
@@ -279,9 +372,11 @@
         function emulatorStart() {
             if (emulatorStarted) {
                 emulatorStarted = false;
+                document.getElementById('buttonStart').style.borderStyle = 'outset';
                 return;
             }
             emulatorStarted = true;
+            document.getElementById('buttonStart').style.borderStyle = 'inset';
 
             //Module.emulatorStart();
 
@@ -303,11 +398,11 @@
             setTimeout(emulatorNextFrame, 40);
         }
 
-        function emulatorSystemFrame25() {
-            for (var i = 0; i < 25; i++)
-                Module.systemFrame();
-
-            Module.drawScreen();
+        function emulatorKeyPress(scan) {
+            Module.emulatorKeyEvent(scan, true);
+        }
+        function emulatorKeyRelease(scan) {
+            Module.emulatorKeyEvent(scan, false);
         }
 
     </script>

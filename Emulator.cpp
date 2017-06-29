@@ -65,6 +65,53 @@ const LPCTSTR FILENAME_BKROM_BASIC11M_0 = _T("basic11m_0.rom");
 const LPCTSTR FILENAME_BKROM_BASIC11M_1 = _T("basic11m_1.rom");
 const LPCTSTR FILENAME_BKROM_BK11M_MSTD = _T("b11m_mstd.rom");
 
+const int KEYEVENT_QUEUE_SIZE = 32;
+uint16_t m_ScreenKeyQueue[KEYEVENT_QUEUE_SIZE];
+int m_ScreenKeyQueueTop = 0;
+int m_ScreenKeyQueueBottom = 0;
+int m_ScreenKeyQueueCount = 0;
+
+void ScreenView_PutKeyEventToQueue(uint16_t keyevent)
+{
+    if (m_ScreenKeyQueueCount == KEYEVENT_QUEUE_SIZE) return;  // Full queue
+
+    m_ScreenKeyQueue[m_ScreenKeyQueueTop] = keyevent;
+    m_ScreenKeyQueueTop++;
+    if (m_ScreenKeyQueueTop >= KEYEVENT_QUEUE_SIZE)
+        m_ScreenKeyQueueTop = 0;
+    m_ScreenKeyQueueCount++;
+}
+uint16_t ScreenView_GetKeyEventFromQueue()
+{
+    if (m_ScreenKeyQueueCount == 0) return 0;  // Empty queue
+
+    uint16_t keyevent = m_ScreenKeyQueue[m_ScreenKeyQueueBottom];
+    m_ScreenKeyQueueBottom++;
+    if (m_ScreenKeyQueueBottom >= KEYEVENT_QUEUE_SIZE)
+        m_ScreenKeyQueueBottom = 0;
+    m_ScreenKeyQueueCount--;
+
+    return keyevent;
+}
+void ScreenView_ProcessKeyboard()
+{
+    // Process next event in the keyboard queue
+    uint16_t keyevent = ScreenView_GetKeyEventFromQueue();
+    if (keyevent != 0)
+    {
+        bool pressed = ((keyevent & 0x8000) != 0);
+        bool ctrl = ((keyevent & 0x4000) != 0);
+        uint8_t bkscan = (uint8_t)(keyevent & 255);
+
+        //if (((bkscan & 0xf8) == 0210) && Settings_GetJoystick() != 0)  // Skip joystick events if NumPad joystick is off
+        //    return;
+
+        //printf(_T("KeyEvent: %04o %d\r\n"), bkscan, pressed);
+
+        g_pBoard->KeyboardEvent(bkscan, pressed, ctrl);
+    }
+}
+
 
 //////////////////////////////////////////////////////////////////////
 
@@ -84,8 +131,6 @@ void EMSCRIPTEN_KEEPALIVE Emulator_Init()
     CProcessor::Init();
 
     g_pBoard = new CMotherboard();
-
-    g_pBoard->Reset();
 
     //g_okEmulatorAutoTapeReading = false;
     //g_pEmulatorAutoTapeReadingFilename = NULL;
@@ -255,7 +300,6 @@ void EMSCRIPTEN_KEEPALIVE Emulator_Stop()
 
     g_okEmulatorRunning = false;
 }
-
 void EMSCRIPTEN_KEEPALIVE Emulator_Reset()
 {
     printf("Emulator_Reset()\n");
@@ -273,7 +317,7 @@ void EMSCRIPTEN_KEEPALIVE Emulator_SystemFrame()
 
     g_pBoard->SetCPUBreakpoint(m_wEmulatorCPUBreakpoint);
 
-    //ScreenView_ScanKeyboard();
+    ScreenView_ProcessKeyboard();
 
     if (!g_pBoard->SystemFrame())
         return;
@@ -298,9 +342,10 @@ void* EMSCRIPTEN_KEEPALIVE Emulator_PrepareScreen()
     return g_pFrameBuffer;
 }
 
-void EMSCRIPTEN_KEEPALIVE Emulator_KeyEvent(uint32_t scancode)
+void EMSCRIPTEN_KEEPALIVE Emulator_KeyEvent(uint8_t keyscan, bool pressed)
 {
-    //TODO
+    //printf("Emulator_KeyEvent(%04o, %d)\n", keyscan, pressed);
+    ScreenView_PutKeyEventToQueue(uint16_t(keyscan) | (pressed ? 0x8000 : 0));
 }
 
 #ifdef __cplusplus
